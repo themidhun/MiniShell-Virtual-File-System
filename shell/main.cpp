@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <cstring>
+#include <cctype>
 
 extern "C" {
 #include "../filesystem/vfs.h"
@@ -10,9 +11,24 @@ extern "C" {
 
 using namespace std;
 
+bool is_valid_name(const string& name)
+{
+    if (name.empty() || name.length() > 64)
+        return false;
+
+    for (char ch : name)
+    {
+        if (!isalnum(static_cast<unsigned char>(ch)) && ch != '_')
+            return false;
+    }
+
+    return true;
+}
+
 Node* find_child(Node* parent, const char* name)
 {
-    if (!parent) return NULL;
+    if (parent == NULL)
+        return NULL;
 
     Node* temp = parent->child;
 
@@ -29,8 +45,11 @@ Node* find_child(Node* parent, const char* name)
 
 bool contains(Node* root, Node* target)
 {
-    if (root == NULL) return false;
-    if (root == target) return true;
+    if (root == NULL)
+        return false;
+
+    if (root == target)
+        return true;
 
     Node* temp = root->child;
 
@@ -49,13 +68,14 @@ int main()
 {
     char root_name[] = "/";
     Node* root = create_node(root_name, 1, NULL);
-    Node* current = root;
 
     if (root == NULL)
     {
         cout << "Filesystem initialization failed\n";
         return 1;
     }
+
+    Node* current = root;
 
     string line, command, name;
 
@@ -69,6 +89,10 @@ int main()
             break;
 
         stringstream ss(line);
+
+        command.clear();
+        name.clear();
+
         ss >> command;
 
         if (command.empty())
@@ -78,10 +102,10 @@ int main()
         {
             Node* temp = current->child;
 
-            if (!temp)
+            if (temp == NULL)
                 cout << "Directory is empty\n";
 
-            while (temp)
+            while (temp != NULL)
             {
                 cout << (temp->type ? "[DIR]  " : "[FILE] ")
                      << temp->name << "\n";
@@ -94,7 +118,8 @@ int main()
         {
             ss >> name;
 
-            if (name.empty() || find_child(current, name.c_str()))
+            if (!is_valid_name(name) ||
+                find_child(current, name.c_str()))
             {
                 cout << "Invalid name or already exists\n";
                 continue;
@@ -102,10 +127,14 @@ int main()
 
             Node* node = create_node(name.data(), 1, NULL);
 
-            if (node)
+            if (node != NULL)
             {
                 add_child(current, node);
                 cout << "Directory created\n";
+            }
+            else
+            {
+                cout << "Directory creation failed\n";
             }
         }
 
@@ -119,7 +148,8 @@ int main()
             if (!data.empty() && data[0] == ' ')
                 data.erase(0, 1);
 
-            if (name.empty() || find_child(current, name.c_str()))
+            if (!is_valid_name(name) ||
+                find_child(current, name.c_str()))
             {
                 cout << "Invalid name or already exists\n";
                 continue;
@@ -129,10 +159,14 @@ int main()
                 name.data(), 0, const_cast<char*>(data.c_str())
             );
 
-            if (node)
+            if (node != NULL)
             {
                 add_child(current, node);
                 cout << "File created\n";
+            }
+            else
+            {
+                cout << "File creation failed\n";
             }
         }
 
@@ -141,19 +175,19 @@ int main()
             ss >> name;
 
             if (name == "/")
+            {
                 current = root;
-
+            }
             else if (name == "..")
             {
-                if (current->parent)
+                if (current->parent != NULL)
                     current = current->parent;
             }
-
             else
             {
                 Node* node = find_child(current, name.c_str());
 
-                if (node && node->type)
+                if (node != NULL && node->type)
                     current = node;
                 else
                     cout << "Directory not found\n";
@@ -164,42 +198,53 @@ int main()
         {
             ss >> name;
 
+            if (name.empty())
+            {
+                cout << "Please provide a name\n";
+                continue;
+            }
+
             Node* node = find_child(current, name.c_str());
 
-            if (!node)
+            if (node == NULL)
+            {
                 cout << "File or directory not found\n";
-
+            }
             else if (contains(node, current))
+            {
                 cout << "Cannot delete current directory or its parent\n";
-
+            }
             else
             {
                 remove_node(node);
                 cout << "Deleted successfully\n";
             }
         }
-       else if (command == "load")
-{
-    ss >> name;
 
-    if (name.empty())
-        name = "backup.dat";
+            else if (command == "load")
+        {
+            ss >> name;
 
-    Node *loaded_root = load_filesystem(name.c_str());
+            if (name.empty())
+                name = "backup.dat";
 
-    if (loaded_root != NULL)
-    {
-        free_tree(root);
-        root = loaded_root;
-        current = root;
+            Node* loaded_root = load_filesystem(name.c_str());
 
-        cout << "Filesystem restored successfully\n";
-    }
-    else
-    {
-        cout << "Unable to restore filesystem\n";
-    }
-}
+            if (loaded_root != NULL)
+            {
+                free_tree(root);
+
+                root = loaded_root;
+                current = root;
+
+                cout << "Filesystem restored successfully\n";
+            }
+            else
+            {
+                cout << "Unable to restore filesystem\n";
+            }
+        }
+
         else if (command == "backup")
         {
             ss >> name;
@@ -221,8 +266,8 @@ int main()
             cout << "Unknown command\n";
         }
     }
-
     free_tree(root);
 
     return 0;
 }
+

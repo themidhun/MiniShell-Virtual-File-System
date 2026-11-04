@@ -2,3 +2,4 @@
 minishell
 *.bak
 backup.dat
+backup/
