@@ -170,30 +170,55 @@ int main()
             }
         }
 
-        else if (command == "cd")
+
+else if (command == "cd")
+{
+    ss >> name;
+
+    if (name.empty())
+    {
+        cout << "Please provide a path\n";
+        continue;
+    }
+
+    Node* target = (name[0] == '/') ? root : current;
+    string part;
+    stringstream path_stream(name);
+    bool valid_path = true;
+
+    while (getline(path_stream, part, '/'))
+    {
+        if (part.empty() || part == ".")
+            continue;
+
+        if (part == "..")
         {
-            ss >> name;
+            if (target->parent != NULL)
+                target = target->parent;
 
-            if (name == "/")
-            {
-                current = root;
-            }
-            else if (name == "..")
-            {
-                if (current->parent != NULL)
-                    current = current->parent;
-            }
-            else
-            {
-                Node* node = find_child(current, name.c_str());
-
-                if (node != NULL && node->type)
-                    current = node;
-                else
-                    cout << "Directory not found\n";
-            }
+            continue;
         }
 
+        Node* node = find_child(target, part.c_str());
+
+        if (node == NULL || node->type != 1)
+        {
+            valid_path = false;
+            break;
+        }
+
+        target = node;
+    }
+
+    if (valid_path)
+{
+        current = target;
+}
+    else
+{
+        cout << "Directory not found\n";
+        }
+     }
         else if (command == "rm")
         {
             ss >> name;
